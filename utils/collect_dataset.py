@@ -1,33 +1,42 @@
 """
 utils/collect_dataset.py
 ISL Dataset Collector — records keypoint sequences from your webcam.
-Run this BEFORE training to build your own Indian Sign Language dataset.
-
-Usage:
-    python utils/collect_dataset.py
 """
+
+import sys
+import os
+# Allow Python to find the 'modes' folder when running from the root directory
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import cv2
 import numpy as np
 import mediapipe as mp
-import os
 import json
-import time
 from modes.sign_language import extract_keypoints
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 DATA_PATH   = "data/isl_dataset"
-GESTURES    = [   # Add your ISL gesture labels here
-    "hello", "thankyou", "yes", "no", "help",
-    "water", "food", "sorry", "please", "good",
-    "bad", "stop", "go", "come", "sit",
-    "stand", "eat", "drink", "sleep", "name",
-    "what", "where", "how", "who", "when",
-    "iloveyou", "fine", "sick", "pain", "doctor"
+GESTURES = [
+    # ── Day 3 — Batch 1 (record these today) ──
+    "hello",       # wave hand
+    "thankyou",    # hand to chin, move forward
+    "yes",         # fist nod up-down
+    "no",          # index finger wag left-right
+    "help",        # fist on palm, lift up
+    "water",       # W handshape at chin
+    "food",        # fingers to mouth
+    "sorry",       # fist circle on chest
+    "please",      # flat hand circle on chest
+    "good",        # flat hand from chin forward
+    "bad",         # fingers from chin, flip down
+    "stop",        # flat hand chop down on palm
+    "go",          # both index fingers forward
+    "come",        # index finger curl toward you
+    "sit",         # two fingers sit on other hand
 ]
 N_SEQUENCES = 40    # videos per gesture
 SEQ_LEN     = 30    # frames per video
-START_DELAY = 2     # seconds to prepare between gestures
+START_DELAY = 2     # seconds to prepare between sequences
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -54,11 +63,48 @@ def collect():
     with mp_holistic.Holistic(min_detection_confidence=0.7,
                                min_tracking_confidence=0.5) as holistic:
         for gesture in GESTURES:
+            
+            # --- SMART RESUME: Check if this gesture is already 100% complete ---
+            gesture_complete = True
+            for seq_idx in range(N_SEQUENCES):
+                seq_path = os.path.join(DATA_PATH, gesture, str(seq_idx))
+                if not os.path.exists(seq_path) or len(os.listdir(seq_path)) < SEQ_LEN:
+                    gesture_complete = False
+                    break
+            
+            if gesture_complete:
+                print(f"[Smart Resume] Skipping '{gesture.upper()}' - Already collected!")
+                continue
+
             print(f"\n{'='*50}")
             print(f"Gesture: {gesture.upper()}")
             print(f"{'='*50}")
 
+            # --- MANUAL PAUSE: Wait for Spacebar before starting a new gesture ---
+            while True:
+                ret, frame = cap.read()
+                if not ret: break
+                cv2.putText(frame, f"UP NEXT: {gesture.upper()}", (10, 200), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 0, 0), 3)
+                cv2.putText(frame, "Press SPACEBAR to start", (10, 260), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                cv2.putText(frame, "Press Q to save and quit", (10, 310), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                cv2.imshow("SensAI Dataset Collector", frame)
+                
+                key = cv2.waitKey(10) & 0xFF
+                if key == ord(' '):
+                    break
+                elif key == ord('q'):
+                    print("Aborted by user.")
+                    cap.release()
+                    cv2.destroyAllWindows()
+                    sys.exit(0)
+
+
             for seq_idx in range(N_SEQUENCES):
+                # Check individual sequence to avoid overwriting
+                seq_path = os.path.join(DATA_PATH, gesture, str(seq_idx))
+                if os.path.exists(seq_path) and len(os.listdir(seq_path)) == SEQ_LEN:
+                    continue
+
                 # Countdown before each sequence
                 for countdown in range(START_DELAY, 0, -1):
                     ret, frame = cap.read()
@@ -105,17 +151,17 @@ def collect():
                     save_path = os.path.join(DATA_PATH, gesture, str(seq_idx), str(frame_idx))
                     np.save(save_path, keypoints)
 
+                # Kill-switch during recording
                 if cv2.waitKey(10) & 0xFF == ord("q"):
                     print("Aborted by user.")
                     cap.release()
                     cv2.destroyAllWindows()
-                    return
+                    sys.exit(0)
 
     cap.release()
     cv2.destroyAllWindows()
     print(f"\n[Done] Dataset saved to {DATA_PATH}/")
     print(f"Total samples: {len(GESTURES)} gestures × {N_SEQUENCES} sequences × {SEQ_LEN} frames")
-
 
 if __name__ == "__main__":
     collect()
