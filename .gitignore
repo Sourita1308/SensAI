@@ -2,3 +2,5 @@ echo sensai_env/ > .gitignore
 echo data/isl_dataset/ >> .gitignore
 echo models/saved/*.pt >> .gitignore
 echo __pycache__/ >> .gitignore
+data/
+utils/__pycache__/
