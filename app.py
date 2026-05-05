@@ -125,7 +125,7 @@ if "Sign Language" in mode:
             ret, frame = cap.read()
             if not ret: break
             result = mode_obj.process_frame(frame)
-            frame_ph.image(result["annotated_frame"], channels="BGR", use_container_width=True)
+            frame_ph.image(result["annotated_frame"], channels="BGR", use_column_width=True)
             with col2:
                 text_ph.markdown(f'<div class="result-box">{result["text"] or "—"}</div>',
                                   unsafe_allow_html=True)

@@ -13,7 +13,7 @@ from langdetect import detect
 
 
 class TTSEngine:
-    def __init__(self, rate: int = 150, volume: float = 1.0, use_offline: bool = True):
+    def __init__(self, rate: int = 150, volume: float = 1.0, use_offline: bool = False):
         self.use_offline = use_offline
         self._lock = threading.Lock()
 
@@ -39,7 +39,12 @@ class TTSEngine:
         detected_lang = lang
         if lang == "auto":
             try:
-                detected_lang = detect(text)
+                # FIX 1: langdetect gets confused by single gestures. 
+                # Force English for short phrases to use the offline voice!
+                if len(text.split()) <= 2:
+                    detected_lang = "en"
+                else:
+                    detected_lang = detect(text)
             except Exception:
                 detected_lang = "en"
 
@@ -68,8 +73,20 @@ class TTSEngine:
             with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
                 tmp_path = f.name
             tts.save(tmp_path)
-            os.system(f"mpg123 -q {tmp_path} 2>/dev/null || afplay {tmp_path} 2>/dev/null || cvlc --play-and-exit {tmp_path} 2>/dev/null")
-            os.unlink(tmp_path)
+            
+            # FIX 2: Cross-platform audio so Windows doesn't crash
+            if os.name == "nt": # If the system is Windows
+                os.system(f"start /min {tmp_path}")
+            else: # If Mac/Linux
+                os.system(f"mpg123 -q {tmp_path} 2>/dev/null || afplay {tmp_path} 2>/dev/null || cvlc --play-and-exit {tmp_path} 2>/dev/null")
+            
+            # Note: os.unlink(tmp_path) might throw a permission error on Windows 
+            # if the file is still playing, so we put it in a try block.
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass
+                
         except Exception as e:
             print(f"[TTS gTTS error] {e}")
 

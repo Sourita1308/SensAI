@@ -11,6 +11,7 @@ import torch.nn as nn
 import mediapipe as mp
 import json
 import os
+import threading
 from collections import deque
 from core.base_mode import BaseMode
 from core.tts_engine import TTSEngine
@@ -72,8 +73,8 @@ class SignLanguageMode(BaseMode):
     CONF_THRESH  = 0.75     # minimum confidence to display prediction
 
     def __init__(self, tts: TTSEngine,
-                 model_path: str = "models/saved/sign_transformer.pt",
-                 labels_path: str = "data/isl_dataset/labels.json"):
+                 model_path: str = "C:/Users/souri/OneDrive/Desktop/sensai/models/sensai_transformer.pth",
+                 labels_path: str = "C:/Users/souri/OneDrive/Desktop/sensai/data/isl_dataset/labels.json"):
         super().__init__(tts)
         self.mp_holistic  = mp.solutions.holistic
         self.mp_draw      = mp.solutions.drawing_utils
@@ -95,11 +96,13 @@ class SignLanguageMode(BaseMode):
         # Load trained model
         self.model  = None
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"DEBUG 1: Does brain exist? {os.path.exists(model_path)}")
+        print(f"DEBUG 2: How many words loaded? {len(self.labels)}")
         if os.path.exists(model_path) and self.labels:
             self.model = SignTransformer(
                 input_dim=225, num_classes=len(self.labels)
             ).to(self.device)
-            self.model.load_state_dict(torch.load(model_path, map_location=self.device))
+            self.model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
             self.model.eval()
 
     def get_mode_name(self) -> str:
@@ -125,7 +128,7 @@ class SignLanguageMode(BaseMode):
 
         prediction_text = ""
         confidence      = 0.0
-
+        print(f"Bucket status: {len(self.sequence)} / {self.SEQ_LEN}")
         if len(self.sequence) == self.SEQ_LEN and self.model is not None:
             seq_tensor = torch.tensor(
                 np.array(self.sequence), dtype=torch.float32
@@ -137,7 +140,7 @@ class SignLanguageMode(BaseMode):
                 confidence, idx = probs.max(dim=-1)
                 confidence = confidence.item()
                 idx        = idx.item()
-
+                print(f"DEBUG: AI guessed index {idx} with confidence {confidence:.4f}")
             if confidence >= self.CONF_THRESH and self.labels:
                 word = self.labels[idx]
                 if not self.sentence or self.sentence[-1] != word:
@@ -145,7 +148,7 @@ class SignLanguageMode(BaseMode):
                     if len(self.sentence) > 8:
                         self.sentence.pop(0)
                 prediction_text = " ".join(self.sentence)
-                self.maybe_speak(word)
+                threading.Thread(target=self.maybe_speak, args=(word,)).start()
 
         # Overlay sentence on frame
         cv2.rectangle(annotated, (0, 0), (640, 40), (0, 0, 0), -1)
