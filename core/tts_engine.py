@@ -13,7 +13,7 @@ from langdetect import detect
 
 
 class TTSEngine:
-    def __init__(self, rate: int = 150, volume: float = 1.0, use_offline: bool = False):
+    def __init__(self, rate: int = 150, volume: float = 1.0, use_offline: bool = True):
         self.use_offline = use_offline
         self._lock = threading.Lock()
 
@@ -56,14 +56,18 @@ class TTSEngine:
             self._speak_gtts(text, detected_lang)
 
     def _speak_offline(self, text: str) -> None:
-        with self._lock:
-            try:
-                self.engine.say(text)
-                self.engine.runAndWait()
-            except Exception as e:
-                print(f"[TTS offline error] {e}")
-                self._speak_gtts(text, "en")
-
+        import subprocess
+        import sys
+        
+        try:
+            # Create a tiny, invisible Python script that only speaks the word
+            script = f'import pyttsx3; engine = pyttsx3.init(); engine.setProperty("rate", 160); engine.say("{text}"); engine.runAndWait()'
+            
+            # Launch it completely completely detached from your camera app
+            subprocess.Popen([sys.executable, "-c", script])
+            
+        except Exception as e:
+            print(f"[TTS process error] {e}")
     def _speak_gtts(self, text: str, lang: str = "en") -> None:
         try:
             # Map langdetect codes to gTTS codes

@@ -12,6 +12,7 @@ import mediapipe as mp
 import json
 import os
 import threading
+import time
 from collections import deque
 from core.base_mode import BaseMode
 from core.tts_engine import TTSEngine
@@ -70,7 +71,7 @@ def extract_keypoints(results) -> np.ndarray:
 
 class SignLanguageMode(BaseMode):
     SEQ_LEN      = 30       # frames per gesture window
-    CONF_THRESH  = 0.75     # minimum confidence to display prediction
+    CONF_THRESH  = 0.95     # minimum confidence to display prediction
 
     def __init__(self, tts: TTSEngine,
                  model_path: str = "C:/Users/souri/OneDrive/Desktop/sensai/models/sensai_transformer.pth",
@@ -86,6 +87,8 @@ class SignLanguageMode(BaseMode):
         # Sliding window of keypoint sequences
         self.sequence: deque = deque(maxlen=self.SEQ_LEN)
         self.sentence: list  = []
+        self.last_spoken_time = 0
+        self.labels = ["hello", "no", "yes"]
 
         # Load labels
         self.labels: list[str] = []
@@ -141,14 +144,27 @@ class SignLanguageMode(BaseMode):
                 confidence = confidence.item()
                 idx        = idx.item()
                 print(f"DEBUG: AI guessed index {idx} with confidence {confidence:.4f}")
-            if confidence >= self.CONF_THRESH and self.labels:
-                word = self.labels[idx]
-                if not self.sentence or self.sentence[-1] != word:
-                    self.sentence.append(word)
-                    if len(self.sentence) > 8:
-                        self.sentence.pop(0)
+                if confidence >= self.CONF_THRESH and self.labels:
+                    word = self.labels[idx]
+
+                        # Check the clock!
+                    current_time = time.time()
+                        
+                        # Only allow it to speak if 2.5 seconds have passed since the last word
+                    if (current_time - self.last_spoken_time) > 2.5:
+                        if not self.sentence or self.sentence[-1] != word:
+                            self.sentence.append(word)
+                            if len(self.sentence) > 8:
+                                    self.sentence.pop(0)
+                                
+                                # Update the text on screen
                 prediction_text = " ".join(self.sentence)
+                                
+                                # Speak the word in the background
                 threading.Thread(target=self.maybe_speak, args=(word,)).start()
+                                
+                                # Reset the timer!
+                self.last_spoken_time = current_time
 
         # Overlay sentence on frame
         cv2.rectangle(annotated, (0, 0), (640, 40), (0, 0, 0), -1)

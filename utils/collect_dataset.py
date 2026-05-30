@@ -19,35 +19,9 @@ DATA_PATH   = "data/isl_dataset"
 GESTURES = [
     # ── All 30 Gestures ──
     "hello",       # wave hand
-    "thankyou",    # hand to chin, move forward
     "yes",         # fist nod up-down
     "no",          # index finger wag left-right
-    "help",        # fist on palm, lift up
-    "water",       # W handshape at chin
-    "food",        # fingers to mouth
-    "sorry",       # fist circle on chest
-    "please",      # flat hand circle on chest
-    "good",        # flat hand from chin forward
-    "bad",         # fingers from chin, flip down
-    "stop",        # flat hand chop down on palm
-    "go",          # both index fingers forward
-    "come",        # index finger curl toward you
-    "sit",         # two fingers sit on other hand
-    "stand",       # index + middle fingers pointing up
-    "eat",         # fingers bunched to mouth repeatedly
-    "drink",       # thumb to mouth, tilt hand like cup
-    "sleep",       # hands together, tilt head on them
-    "name",        # two index fingers tap together
-    "what",        # fingers spread, shake hand side to side
-    "where",       # index finger wag side to side
-    "how",         # knuckles together, roll forward
-    "who",         # index finger circle near lips
-    "when",        # index fingers circle each other
-    "iloveyou",    # pinky + index + thumb extended (ILY hand)
-    "fine",        # open hand, thumb on chest tap
-    "sick",        # middle fingers on forehead + stomach
-    "pain",        # index fingers point at each other, twist
-    "doctor",      # tap wrist like checking pulse
+    
 ]
 
 N_SEQUENCES = 10    # Only recording 10 variation sequences this time
