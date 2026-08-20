@@ -36,38 +36,54 @@ class TTSEngine:
         if not text or not text.strip():
             return
 
+        import re
+        # Clean markdown formatting, HTML tags, backticks, asterisks, URLs
+        text = re.sub(r'<[^>]+>', '', text)
+        text = re.sub(r'[*#_`~]', '', text)
+        text = re.sub(r'https?://\S+', '', text)
+        # Convert uppercase English words (2+ chars) to Title Case so TTS engines
+        # pronounce them as complete words instead of spelling each letter out!
+        text = re.sub(r'\b[A-Z]{2,}\b', lambda m: m.group(0).capitalize(), text)
+        text = text.strip()
+        if not text:
+            return
+
         detected_lang = lang
         if lang == "auto":
-            try:
-                # FIX 1: langdetect gets confused by single gestures. 
-                # Force English for short phrases to use the offline voice!
-                if len(text.split()) <= 2:
-                    detected_lang = "en"
-                else:
-                    detected_lang = detect(text)
-            except Exception:
+            if any("\u0980" <= c <= "\u09FF" for c in text):
+                detected_lang = "bn"
+            elif any("\u0900" <= c <= "\u097F" for c in text):
+                detected_lang = "hi"
+            else:
                 detected_lang = "en"
 
-        # Use offline engine for English
-        if self.use_offline and detected_lang in ("en", "unknown"):
-            self._speak_offline(text)
-        else:
-            # gTTS handles multilingual (Bengali, Hindi, etc.)
+        # If Bengali or Hindi script detected, use gTTS so Indian languages are pronounced accurately!
+        if detected_lang in ("bn", "hi"):
             self._speak_gtts(text, detected_lang)
+        else:
+            # Use Mode 1's offline subprocess technique (pyttsx3) for English text
+            self._speak_offline(text)
 
     def _speak_offline(self, text: str) -> None:
         import subprocess
         import sys
         
         try:
-            # Create a tiny, invisible Python script that only speaks the word
-            script = f'import pyttsx3; engine = pyttsx3.init(); engine.setProperty("rate", 160); engine.say("{text}"); engine.runAndWait()'
+            # Create a tiny, invisible Python script that speaks with Microsoft Zira voice
+            script = (
+                "import pyttsx3; engine = pyttsx3.init(); "
+                "engine.setProperty('rate', 160); "
+                "voices = engine.getProperty('voices'); "
+                "[engine.setProperty('voice', v.id) for v in voices if 'zira' in v.name.lower() or 'female' in v.name.lower()]; "
+                f"engine.say({repr(text)}); engine.runAndWait()"
+            )
             
-            # Launch it completely completely detached from your camera app
+            # Launch it completely detached from your camera app
             subprocess.Popen([sys.executable, "-c", script])
             
         except Exception as e:
             print(f"[TTS process error] {e}")
+
     def _speak_gtts(self, text: str, lang: str = "en") -> None:
         try:
             # Map langdetect codes to gTTS codes
@@ -78,21 +94,36 @@ class TTSEngine:
                 tmp_path = f.name
             tts.save(tmp_path)
             
-            # FIX 2: Cross-platform audio so Windows doesn't crash
+            # Cross-platform audio without GUI popups or COM worker thread issues
             if os.name == "nt": # If the system is Windows
-                os.system(f"start /min {tmp_path}")
+                import subprocess
+                # Calculate sleep duration dynamically based on text length (~12 chars/sec + buffer)
+                sleep_sec = max(10, int(len(text) / 10) + 8)
+                path_uri = tmp_path.replace("\\", "/")
+                ps_script = (
+                    f"Add-Type -AssemblyName presentationCore; "
+                    f"$player = New-Object System.Windows.Media.MediaPlayer; "
+                    f"$player.Open([System.Uri]'{path_uri}'); "
+                    f"Start-Sleep -Milliseconds 500; "
+                    f"$player.Play(); "
+                    f"Start-Sleep -Seconds {sleep_sec}; "
+                    f"$player.Close()"
+                )
+                subprocess.run(
+                    ["powershell", "-NoProfile", "-Command", ps_script],
+                    creationflags=0x08000000 # CREATE_NO_WINDOW
+                )
             else: # If Mac/Linux
                 os.system(f"mpg123 -q {tmp_path} 2>/dev/null || afplay {tmp_path} 2>/dev/null || cvlc --play-and-exit {tmp_path} 2>/dev/null")
             
-            # Note: os.unlink(tmp_path) might throw a permission error on Windows 
-            # if the file is still playing, so we put it in a try block.
             try:
                 os.unlink(tmp_path)
             except:
                 pass
                 
         except Exception as e:
-            print(f"[TTS gTTS error] {e}")
+            print(f"[gTTS failed, falling back to pyttsx3] {e}")
+            self._speak_offline(text) # fallback
 
     def stop(self) -> None:
         if self.use_offline:

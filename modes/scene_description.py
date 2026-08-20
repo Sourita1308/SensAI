@@ -20,7 +20,7 @@ class SceneDescriptionMode(BaseMode):
     BLIP_MODEL_CPU = "Salesforce/blip-image-captioning-base"
     BLIP_MODEL_GPU = "Salesforce/blip-image-captioning-large"
 
-    FRAME_SKIP = 30   # describe scene every 30 frames (~1s at 30fps)
+    FRAME_SKIP = 60   # run BLIP every 2 sec at 30fps
 
     def __init__(self, tts: TTSEngine):
         super().__init__(tts)
@@ -80,8 +80,10 @@ class SceneDescriptionMode(BaseMode):
             with torch.no_grad():
                 output = self.model.generate(
                     **inputs,
-                    max_new_tokens=60,
-                    num_beams=4,
+                    min_length=12,
+                    max_new_tokens=45,
+                    num_beams=5,
+                    no_repeat_ngram_size=2,
                     early_stopping=True
                 )
             caption = self.processor.decode(output[0], skip_special_tokens=True)

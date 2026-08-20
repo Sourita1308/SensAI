@@ -5,6 +5,11 @@ Run AFTER collect_dataset.py.
 
 Usage:
     python utils/train_sign_model.py
+
+IMPORTANT COLAB INSTRUCTION ("Clean Slate" Strategy):
+If you are running this in Google Colab, make sure to wipe any old dataset before uploading a new one to prevent 'Folder Ghosts'.
+Run this cell in Colab BEFORE unzipping your dataset:
+!rm -rf data/isl_dataset
 """
 
 import os
@@ -16,7 +21,9 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from tqdm import tqdm
-from modes.sign_language import SignTransformer
+import sys
+sys.path.append('.')
+from modes.sign_language import SignTransformer, normalize_and_approximate_keypoints
 
 # ── Config ────────────────────────────────────────────────────────────────────
 DATA_PATH   = "data/isl_dataset"
@@ -55,7 +62,9 @@ def load_data(data_path: str, labels: list) -> tuple:
             frames = []
             for i in range(SEQ_LEN):
                 npy = os.path.join(seq_path, f"{i}.npy")
-                frames.append(np.load(npy) if os.path.exists(npy) else np.zeros(225))
+                frame_data = np.load(npy) if os.path.exists(npy) else np.zeros(225)
+                frame_data = normalize_and_approximate_keypoints(frame_data)
+                frames.append(frame_data)
             X.append(frames)
             y.append(label_idx)
     return np.array(X, dtype=np.float32), np.array(y, dtype=np.int64)
@@ -135,7 +144,7 @@ def train():
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             torch.save(model.state_dict(), MODEL_PATH)
-            print(f"           ✓ Saved best model ({val_acc:.1f}%)")
+            print(f"           [OK] Saved best model ({val_acc:.1f}%)")
 
     print(f"\n[Done] Best validation accuracy: {best_val_acc:.1f}%")
     print(f"[Done] Model saved to {MODEL_PATH}")

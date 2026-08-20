@@ -17,17 +17,49 @@ from modes.sign_language import extract_keypoints
 # ── Configuration ─────────────────────────────────────────────────────────────
 DATA_PATH   = "data/isl_dataset"
 GESTURES = [
-    # ── All 30 Gestures ──
+    # ── Batch A (Core Needs & States) ──
+    "water",       # W handshape at chin
+    "food",        # fingers to mouth
+    "eat",         # fingers bunched to mouth repeatedly
+    "drink",       # thumb to mouth, tilt hand like cup
+    "sleep",       # hands together, tilt head on them
+    "sick",        # middle fingers on forehead + stomach
+    "pain",        # index fingers point at each other, twist
+    "doctor",      # tap wrist like checking pulse
+
+    # ── Batch B (Commands & Actions) ──
+    "help",        # fist on palm, lift up
+    "stop",        # flat hand chop down on palm
+    "go",          # both index fingers forward
+    "come",        # index finger curl toward you
+    "sit",         # two fingers sit on other hand
+    "stand",       # index + middle fingers pointing up
+
+    # ── Batch C (Interrogatives & Social) ──
+    "what",        # fingers spread, shake hand side to side
+    "where",       # index finger wag side to side
+    "how",         # knuckles together, roll forward
+    "who",         # index finger circle near lips
+    "when",        # index fingers circle each other
+    "name",        # two index fingers tap together
+    "sorry",       # fist circle on chest
+    "please",      # flat hand circle on chest
+    "good",        # flat hand from chin forward
+    "bad",         # fingers from chin, flip down
+    "fine",        # open hand, thumb on chest tap
+    "iloveyou",    # pinky + index + thumb extended (ILY hand)
+    "thankyou",    # hand to chin, move forward
+    
+    # ── Original 3 Gestures ──
     "hello",       # wave hand
     "yes",         # fist nod up-down
     "no",          # index finger wag left-right
-    
 ]
 
-N_SEQUENCES = 10    # Only recording 10 variation sequences this time
+N_SEQUENCES = 50    # Aiming for 50-100 video sequences per word
 SEQ_LEN     = 30    # frames per video
 START_DELAY = 2     # seconds to prepare between sequences
-SEQ_OFFSET  = 40    # START SAVING AT FOLDER 40 (Do not overwrite 0-39)
+SEQ_OFFSET  = 0     # START SAVING AT FOLDER 0 (Adjust if resuming later)
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -130,7 +162,7 @@ def collect():
                     cv2.imshow("SensAI Dataset Collector", frame)
                     cv2.waitKey(1) & 0xFF
 
-                    keypoints = extract_keypoints(results)
+                    keypoints, _ = extract_keypoints(results)
                     save_path = os.path.join(DATA_PATH, gesture, str(seq_idx), str(frame_idx))
                     np.save(save_path, keypoints)
 

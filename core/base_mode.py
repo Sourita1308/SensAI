@@ -36,10 +36,10 @@ class BaseMode(ABC):
         pass
 
     def maybe_speak(self, text: str) -> None:
-        """Speak only if text changed or cooldown passed."""
+        """Speak only when a new expression/text is detected and cooldown has passed (never repeat continuously)."""
         import time
         now = time.time()
-        if text and (text != self.last_spoken or now - self._last_speak_time > self.speak_cooldown):
+        if text and text != self.last_spoken and (now - self._last_speak_time >= self.speak_cooldown):
             self.last_spoken = text
             self._last_speak_time = now
             self.tts.speak(text)

@@ -14,12 +14,12 @@ from core.tts_engine import TTSEngine
 # Contextual messages per emotion — more human than just saying "You look angry"
 EMOTION_MESSAGES = {
     "happy":     "You look happy! That's wonderful.",
-    "sad":       "You seem to be feeling sad right now.",
-    "angry":     "It looks like you might be feeling frustrated.",
+    "sad":       "You seem to be feeling sad.",
+    "angry":     "You might be feeling frustrated.",
     "fear":      "You appear anxious or fearful.",
     "surprise":  "You look surprised!",
-    "disgust":   "You seem uncomfortable right now.",
-    "neutral":   "Your expression looks calm and neutral."
+    "disgust":   "You seem uncomfortable.",
+    "neutral":   "Your expression looks calm."
 }
 
 EMOTION_COLORS = {
@@ -41,7 +41,7 @@ class EmotionDetectionMode(BaseMode):
         super().__init__(tts)
         self.frame_count     = 0
         self.last_result     = {}
-        self.speak_cooldown  = 5.0   # longer cooldown for emotion — avoid being annoying
+        self.speak_cooldown  = 7.0   # 7-second cooldown between emotion announcements — calm & unhurried
 
     def get_mode_name(self) -> str:
         return "Facial Emotion → Speech"
@@ -84,11 +84,14 @@ class EmotionDetectionMode(BaseMode):
             emotions = r.get("emotion", {})
             dominant = r.get("dominant_emotion", "")
             region   = r.get("region", {})
+            conf     = emotions.get(dominant, 0) / 100
+            if conf < self.CONF_THRESH:
+                return {}
             return {
                 "dominant_emotion": dominant,
                 "emotions":         emotions,
                 "region":           region,
-                "confidence":       emotions.get(dominant, 0) / 100
+                "confidence":       conf
             }
         except Exception as e:
             print(f"[Emotion error] {e}")
